@@ -1,8 +1,9 @@
-using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Orders.Service.Application.Orders.ConfirmOrder;
 using Orders.Service.Application.Orders.CreateOrder;
 using Orders.Service.Application.Orders.GetOrder;
+using Orders.Service.Infrastructure;
 using Orders.Service.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,8 +29,11 @@ builder.Services.AddDbContext<OrdersDbContext>(options =>
     options.UseInMemoryDatabase("TransportDB");
 });
 
+builder.Services.AddInfrastructureServices();
+
 builder.Services.AddScoped<CreateOrderHandler>();
 builder.Services.AddScoped<GetOrderHandler>();
+builder.Services.AddScoped<ConfirmOrderHandler>();
 
 var app = builder.Build();
 

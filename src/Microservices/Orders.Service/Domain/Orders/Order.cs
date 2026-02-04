@@ -29,4 +29,8 @@ public class Order
             CreatedAt = DateTime.UtcNow
         };
     }
+    public void Confirm()//Guid truckId, Guid driverId, decimal price
+    {
+        Status = OrderStatus.Confirmed;
+    }
 }

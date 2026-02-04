@@ -1,41 +1,64 @@
+using Fleet.Service.Infrastructure.Persistence;
+using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using Fleet.Service.Application.Vehicles.CreateVehicle;
+using Fleet.Service.Application.Vehicles.GetVehicle;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddControllers();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Mi API",
+        Version = "v1",
+        Description = "Web API en .NET 8 con Swagger"
+    });
+});
+
+//builder.Services.AddDbContext<OrdersDbContext>(opt =>
+//    opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+builder.Services.AddDbContext<FleetDbContext>(options =>
+{
+    options.UseInMemoryDatabase("TransportDB");
+});
+
+builder.Services.AddScoped<CreateVehicleHandler>();
+builder.Services.AddScoped<GetVehicleHandler>();
 
 var app = builder.Build();
+
+// Seed de datos (opcional pero recomendado)
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+
+//    if (!db.Productos.Any())
+//    {
+//        db.Productos.AddRange(
+//            new Producto { Id = 1, Nombre = "Teclado", Precio = 100 },
+//            new Producto { Id = 2, Nombre = "Mouse", Precio = 50 }
+//        );
+
+//        db.SaveChanges();
+//    }
+//}
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Mi API v1");
+    });
 }
 
 app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+app.MapControllers();
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
