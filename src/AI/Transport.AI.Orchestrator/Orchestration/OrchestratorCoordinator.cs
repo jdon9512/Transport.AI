@@ -28,30 +28,59 @@ public class OrchestratorCoordinator
         _bus = bus;
     }
 
-    public async Task Handle(OrderCreatedEvent order)
+    public async Task Handle(OrderCreatedEvent evt)
     {
-        var saga = await _repo.Get(order.OrderId);
+        var saga = new OrderSagaState { OrderId = evt.OrderId };
 
-        var route = await _logistics.Calculate(order);
-        var truck = await _operations.Assign(order);
-        var cost = await _finance.Calculate(order, route.DistanceKm);
+        saga.Logistics = await _logistics.CalculateRoute(saga);
+        saga.Operations = await _operations.AssignTruck(saga);
+        saga.Finance = await _finance.CalculateCost(saga);
 
-        saga.RouteReady = true;
-        saga.TruckReady = true;
-        saga.CostReady = true;
+        Validate(saga);
 
-        saga.DistanceKm = route.DistanceKm;
-        saga.TruckId = truck.TruckId;
-        saga.DriverId = truck.DriverId;
-        saga.Price = cost.Price;
+        await _repository.SaveAsync(saga);
 
-        await _repo.Save(saga);
+        if (!saga.Approved)
+        {
+            await _publisher.Publish(new RejectOrderCommand
+            {
+                OrderId = saga.OrderId,
+                Reasons = saga.RejectionReasons
+            });
 
-        await _bus.Publish(new ConfirmOrderCommand(
-            saga.OrderId,
-            saga.TruckId,
-            saga.DriverId,
-            saga.Price));
+            return;
+        }
+
+        await _publisher.Publish(new ConfirmOrderCommand
+        {
+            OrderId = saga.OrderId,
+            Route = saga.Logistics.Data["route"],
+            Truck = saga.Operations.Data["truck"],
+            Cost = saga.Finance.Data["cost"]
+        });
     }
+
+    private void Validate(OrderSagaState saga)
+    {
+        if (saga.Logistics == null || !saga.Logistics.Success)
+            saga.RejectionReasons.Add("Invalid logistics decision");
+
+        if (saga.Operations == null || !saga.Operations.Success)
+            saga.RejectionReasons.Add("No vehicle available");
+
+        if (saga.Finance == null || !saga.Finance.Success)
+            saga.RejectionReasons.Add("Cost calculation failed");
+
+        // Ejemplo de regla cruzada
+        if (saga.Finance?.Data.TryGetValue("cost", out var costStr) == true
+            && decimal.Parse(costStr) > 5_000_000)
+        {
+            saga.RejectionReasons.Add("Cost exceeds allowed limit");
+        }
+
+        saga.Approved = !saga.RejectionReasons.Any();
+    }
+
+
 }
 

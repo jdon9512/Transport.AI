@@ -1,13 +1,18 @@
 ﻿using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Transport.AI.Agents;
 using Transport.AI.Orchestrator;
 using Transport.AI.Orchestrator.Consumers;
+using Transport.AI.Orchestrator.Infrastructure.OpenAIClient;
 using Transport.AI.Orchestrator.Orchestration;
 using Transport.AI.Orchestrator.Saga;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSingleton(
+    _ => new OpenAIClient(builder.Configuration["OpenAI:ApiKey"])
+);
 
 builder.Services.AddMassTransit(x =>
 {

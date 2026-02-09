@@ -1,16 +1,20 @@
 ﻿using Transport.Shared.Events;
 
-namespace Transport.AI.Agents
+namespace Transport.AI.Agents;
+
+public class OperationsAgent
 {
-    public class OperationsAgent
+    private readonly OpenAIClient _ai;
+
+    public OperationsAgent(OpenAIClient ai)
     {
-        public Task<TruckReservedEvent> Assign(OrderCreatedEvent order)
-        {
-            return Task.FromResult(new TruckReservedEvent(
-                order.OrderId,
-                Guid.NewGuid(),
-                Guid.NewGuid()));
-        }
+        _ai = ai;
     }
 
+    public async Task<string> AssignTruck(OrderSagaState state)
+    {
+        return await _ai.CompleteAsync(
+            "You manage vehicle fleets",
+            $"Assign truck for weight {state.Weight}");
+    }
 }
