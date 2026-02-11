@@ -8,15 +8,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MassTransit" Version="8.5.7" />
-    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.7" />
 	<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-	<PackageReference Include="Microsoft.OpenApi" Version="3.3.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\Transport.Shared\Transport.Shared.csproj" />
     <ProjectReference Include="..\Transport.AI.Agents\Transport.AI.Agents.csproj" />
+    <ProjectReference Include="..\Transport.AI.Infrastructure\Transport.AI.Infrastructure.csproj" />
   </ItemGroup>
+
+	<ItemGroup>
+		<None Update="appsettings.Development.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

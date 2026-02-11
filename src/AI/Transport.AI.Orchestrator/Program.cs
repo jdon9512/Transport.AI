@@ -1,18 +1,35 @@
 ﻿using MassTransit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Transport.AI.Agents;
-using Transport.AI.Orchestrator;
+using Transport.AI.Agents.AIClient;
+using Transport.AI.Agents.Saga;
+using Transport.AI.Infrastructure.Messaging;
+using Transport.AI.Infrastructure.OpenAIClient;
+using Transport.AI.Infrastructure.Saga;
 using Transport.AI.Orchestrator.Consumers;
-using Transport.AI.Orchestrator.Infrastructure.OpenAIClient;
 using Transport.AI.Orchestrator.Orchestration;
-using Transport.AI.Orchestrator.Saga;
+using OpenAI.Chat;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddSingleton(
-    _ => new OpenAIClient(builder.Configuration["OpenAI:ApiKey"])
-);
+builder.Configuration
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddEnvironmentVariables();
+
+
+
+builder.Services.AddSingleton<IAIClient, OwnOpenAIClient>();
+
+builder.Services.AddSingleton<ChatClient>(serviceProvider =>
+{
+    var apiKey = builder.Configuration["OpenAI:ApiKey"];
+    var model = "gpt-4o-mini";
+
+    return new ChatClient(model, apiKey);
+});
 
 builder.Services.AddMassTransit(x =>
 {
@@ -33,8 +50,9 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
-// Saga
+// infrastructure 
 builder.Services.AddSingleton<ISagaRepository, InMemorySagaRepository>();
+builder.Services.AddSingleton<IEventBus, EventBus>();
 
 // Coordinator
 builder.Services.AddScoped<OrchestratorCoordinator>();

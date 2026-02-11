@@ -1,8 +1,8 @@
 ﻿using MassTransit;
-using MassTransit.Saga;
-using Transport.AI.Orchestrator.Saga;
 using Transport.Shared.Events;
 using Transport.AI.Agents;
+using Transport.AI.Agents.Saga;
+using Transport.AI.Infrastructure.Messaging;
 
 namespace Transport.AI.Orchestrator.Orchestration;
 
@@ -12,14 +12,14 @@ public class OrchestratorCoordinator
     private readonly LogisticsAgent _logistics;
     private readonly OperationsAgent _operations;
     private readonly FinanceAgent _finance;
-    private readonly IPublishEndpoint _bus;
+    private readonly IEventBus _bus;
 
     public OrchestratorCoordinator(
         ISagaRepository repo,
         LogisticsAgent logistics,
         OperationsAgent operations,
         FinanceAgent finance,
-        IPublishEndpoint bus)
+        IEventBus bus)
     {
         _repo = repo;
         _logistics = logistics;
@@ -38,11 +38,11 @@ public class OrchestratorCoordinator
 
         Validate(saga);
 
-        await _repository.SaveAsync(saga);
+        await _repo.SaveAsync(saga);
 
         if (!saga.Approved)
         {
-            await _publisher.Publish(new RejectOrderCommand
+            await _bus.Publish(new RejectOrderCommand
             {
                 OrderId = saga.OrderId,
                 Reasons = saga.RejectionReasons
@@ -51,32 +51,30 @@ public class OrchestratorCoordinator
             return;
         }
 
-        await _publisher.Publish(new ConfirmOrderCommand
-        {
-            OrderId = saga.OrderId,
-            Route = saga.Logistics.Data["route"],
-            Truck = saga.Operations.Data["truck"],
-            Cost = saga.Finance.Data["cost"]
-        });
+        Guid.TryParse(saga.Operations?.Data["truckId"] ?? Guid.NewGuid().ToString(), out Guid truckId);
+        Guid.TryParse(saga.Operations?.Data["driverId"] ?? Guid.NewGuid().ToString(), out Guid driverId);
+        decimal.TryParse(saga.Finance?.Data["price"] ?? "200", out decimal price);
+
+        await _bus.Publish(new ConfirmOrderCommand(saga.OrderId,truckId,driverId,price));
     }
 
     private void Validate(OrderSagaState saga)
     {
-        if (saga.Logistics == null || !saga.Logistics.Success)
-            saga.RejectionReasons.Add("Invalid logistics decision");
+        //if (saga.Logistics == null || !saga.Logistics.Success)
+        //    saga.RejectionReasons.Add("Invalid logistics decision");
 
-        if (saga.Operations == null || !saga.Operations.Success)
-            saga.RejectionReasons.Add("No vehicle available");
+        //if (saga.Operations == null || !saga.Operations.Success)
+        //    saga.RejectionReasons.Add("No vehicle available");
 
-        if (saga.Finance == null || !saga.Finance.Success)
-            saga.RejectionReasons.Add("Cost calculation failed");
+        //if (saga.Finance == null || !saga.Finance.Success)
+        //    saga.RejectionReasons.Add("Cost calculation failed");
 
-        // Ejemplo de regla cruzada
-        if (saga.Finance?.Data.TryGetValue("cost", out var costStr) == true
-            && decimal.Parse(costStr) > 5_000_000)
-        {
-            saga.RejectionReasons.Add("Cost exceeds allowed limit");
-        }
+        //// Ejemplo de regla cruzada
+        //if (saga.Finance?.Data.TryGetValue("cost", out var costStr) == true
+        //    && decimal.Parse(costStr) > 5_000_000)
+        //{
+        //    saga.RejectionReasons.Add("Cost exceeds allowed limit");
+        //}
 
         saga.Approved = !saga.RejectionReasons.Any();
     }

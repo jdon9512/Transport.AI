@@ -1,14 +1,14 @@
 ﻿using System.Text.Json;
-using Transport.AI.Agents.common;
-using Transport.Shared.Events;
+using Transport.AI.Agents.AIClient;
+using Transport.AI.Agents.Saga;
 
 namespace Transport.AI.Agents;
 
 public class LogisticsAgent
 {
-    private readonly OpenAIClient _ai;
+    private readonly IAIClient _ai;
 
-    public LogisticsAgent(OpenAIClient ai)
+    public LogisticsAgent(IAIClient ai)
     {
         _ai = ai;
     }
